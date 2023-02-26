@@ -1,7 +1,8 @@
 use crate::{
     request::Request,
-    response::{InitOkBody, ResponseBody},
+    response::{EchoOkBody, InitOkBody, ResponseBody},
 };
+use request::{EchoBody, InitBody};
 use tokio::io::{stdin, AsyncBufReadExt, BufReader};
 mod request;
 mod response;
@@ -16,19 +17,40 @@ async fn main() {
         eprintln!("Processing stdin line: \n {line}");
         let request: Request = serde_json::from_str(&line).unwrap();
 
-        match &request.body {
-            request::RequestBody::Init(init_body) => {
-                eprintln!("Processing Init request from the maelstrom, with body {init_body:?}");
-
-                let init_ok_body = InitOkBody {
-                    r#type: "init_ok".to_string(),
-                    in_reply_to: init_body.msg_id,
-                };
-
-                request.reply(ResponseBody::InitOk(init_ok_body));
-                eprintln!("Successfully replied with init_ok response");
+        tokio::task::spawn(async move {
+            match &request.body {
+                request::RequestBody::Init(init_body) => {
+                    handle_init(&request, init_body).await;
+                }
+                request::RequestBody::Echo(echo_body) => {
+                    handle_echo(&request, echo_body).await;
+                }
             }
-        }
+        });
     }
 }
 
+async fn handle_init(request: &Request, init_body: &InitBody) {
+    eprintln!("Processing Init request from the maelstrom, with body {init_body:?}");
+
+    let init_ok_body = InitOkBody {
+        r#type: "init_ok".to_string(),
+        in_reply_to: request.body.get_msg_id(),
+    };
+
+    request.reply(ResponseBody::InitOk(init_ok_body));
+    eprintln!("Successfully replied with init_ok response");
+}
+
+async fn handle_echo(request: &Request, echo_body: &EchoBody) {
+    eprintln!("Processing Echo request from the maelstrom, with body {echo_body:?}");
+
+    let echo_ok_body = EchoOkBody {
+        r#type: "echo_ok".to_string(),
+        in_reply_to: request.body.get_msg_id(),
+        echo: echo_body.echo.clone(),
+    };
+
+    request.reply(ResponseBody::EchoOk(echo_ok_body));
+    eprintln!("Successfully replied with echo_ok response");
+}
