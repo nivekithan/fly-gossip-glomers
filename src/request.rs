@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-use crate::response::{Response};
+use crate::response::Response;
 
 #[derive(Deserialize, Debug)]
 pub struct Request<Body> {
@@ -11,8 +11,8 @@ pub struct Request<Body> {
     pub body: Body,
 }
 
-impl <Body>  Request<Body> {
-    pub fn reply<ResponseBody : Serialize + std::fmt::Debug>(&self, body: ResponseBody) {
+impl<Body> Request<Body> {
+    pub fn reply<ResponseBody: Serialize + std::fmt::Debug>(&self, body: ResponseBody) {
         let response = Response {
             src: self.dest.clone(),
             dest: self.src.clone(),
@@ -29,8 +29,8 @@ impl <Body>  Request<Body> {
 pub enum RequestBody {
     Init(InitBody),
     Echo(EchoBody),
+    Generate(GenerateBody),
 }
-
 
 #[derive(Deserialize, Debug, Clone)]
 
@@ -45,4 +45,10 @@ pub struct EchoBody {
     pub r#type: String,
     pub msg_id: usize,
     pub echo: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct GenerateBody {
+    pub r#type: String,
+    pub msg_id : usize,
 }

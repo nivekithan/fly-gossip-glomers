@@ -19,3 +19,10 @@ pub struct EchoOkBody {
     pub in_reply_to: usize,
     pub echo: String,
 }
+
+#[derive(serde::Serialize, Debug)]
+pub struct GenerateOkBody {
+    pub r#type: String,
+    pub id: String,
+    pub in_reply_to : usize,
+}
