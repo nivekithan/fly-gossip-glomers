@@ -1,15 +1,10 @@
-#[derive(serde::Serialize, Debug)]
-pub struct Response {
-    pub src: String,
-    pub dest: String,
-    pub body: ResponseBody,
-}
+use serde::Serialize;
 
 #[derive(serde::Serialize, Debug)]
-#[serde(untagged)]
-pub enum ResponseBody {
-    InitOk(InitOkBody),
-    EchoOk(EchoOkBody),
+pub struct Response<Body: Serialize + std::fmt::Debug> {
+    pub src: String,
+    pub dest: String,
+    pub body: Body,
 }
 
 #[derive(serde::Serialize, Debug)]

@@ -1,6 +1,6 @@
 use crate::{
-    request::Request,
-    response::{EchoOkBody, InitOkBody, ResponseBody},
+    request::{Request, RequestBody},
+    response::{EchoOkBody, InitOkBody},
 };
 use request::{EchoBody, InitBody};
 use tokio::io::{stdin, AsyncBufReadExt, BufReader};
@@ -15,42 +15,54 @@ async fn main() {
 
     while let Some(line) = stdin_lines_stream.next_line().await.unwrap() {
         eprintln!("Processing stdin line: \n {line}");
-        let request: Request = serde_json::from_str(&line).unwrap();
+        let request: Request<RequestBody> = serde_json::from_str(&line).unwrap();
 
         tokio::task::spawn(async move {
             match &request.body {
                 request::RequestBody::Init(init_body) => {
-                    handle_init(&request, init_body).await;
+                    let init_request : Request<InitBody> = Request {
+                        src: request.src,
+                        dest: request.dest,
+                        body: init_body.clone(),
+                    };
+
+                    handle_init(&init_request, init_body).await;
                 }
                 request::RequestBody::Echo(echo_body) => {
-                    handle_echo(&request, echo_body).await;
+                    let echo_request : Request<EchoBody> = Request {
+                        src: request.src,
+                        dest: request.dest,
+                        body: echo_body.clone(),
+                    };
+                    handle_echo(&echo_request, echo_body).await;
                 }
             }
         });
     }
 }
 
-async fn handle_init(request: &Request, init_body: &InitBody) {
+async fn handle_init(request: &Request<InitBody>, init_body: &InitBody) {
     eprintln!("Processing Init request from the maelstrom, with body {init_body:?}");
 
     let init_ok_body = InitOkBody {
         r#type: "init_ok".to_string(),
-        in_reply_to: request.body.get_msg_id(),
+        in_reply_to: request.body.msg_id,
     };
 
-    request.reply(ResponseBody::InitOk(init_ok_body));
+
+    request.reply(init_ok_body);
     eprintln!("Successfully replied with init_ok response");
 }
 
-async fn handle_echo(request: &Request, echo_body: &EchoBody) {
+async fn handle_echo(request: &Request<EchoBody>, echo_body: &EchoBody) {
     eprintln!("Processing Echo request from the maelstrom, with body {echo_body:?}");
 
     let echo_ok_body = EchoOkBody {
         r#type: "echo_ok".to_string(),
-        in_reply_to: request.body.get_msg_id(),
+        in_reply_to: request.body.msg_id,
         echo: echo_body.echo.clone(),
     };
 
-    request.reply(ResponseBody::EchoOk(echo_ok_body));
+    request.reply(echo_ok_body);
     eprintln!("Successfully replied with echo_ok response");
 }

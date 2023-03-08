@@ -1,16 +1,18 @@
-use serde::Deserialize;
+use std::fmt::Debug;
 
-use crate::response::{Response, ResponseBody};
+use serde::{Deserialize, Serialize};
+
+use crate::response::{Response};
 
 #[derive(Deserialize, Debug)]
-pub struct Request {
-    src: String,
-    dest: String,
-    pub body: RequestBody,
+pub struct Request<Body> {
+    pub src: String,
+    pub dest: String,
+    pub body: Body,
 }
 
-impl Request {
-    pub fn reply(&self, body: ResponseBody) {
+impl <Body>  Request<Body> {
+    pub fn reply<ResponseBody : Serialize + std::fmt::Debug>(&self, body: ResponseBody) {
         let response = Response {
             src: self.dest.clone(),
             dest: self.src.clone(),
@@ -29,16 +31,8 @@ pub enum RequestBody {
     Echo(EchoBody),
 }
 
-impl RequestBody {
-    pub fn get_msg_id(&self) -> usize {
-        match self {
-            RequestBody::Init(init_body) => init_body.msg_id,
-            RequestBody::Echo(echo_body) => echo_body.msg_id,
-        }
-    }
-}
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 
 pub struct InitBody {
     pub r#type: String,
@@ -46,7 +40,7 @@ pub struct InitBody {
     pub node_id: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct EchoBody {
     pub r#type: String,
     pub msg_id: usize,
