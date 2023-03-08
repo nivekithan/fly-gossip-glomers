@@ -24,5 +24,24 @@ pub struct EchoOkBody {
 pub struct GenerateOkBody {
     pub r#type: String,
     pub id: String,
-    pub in_reply_to : usize,
+    pub in_reply_to: usize,
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct BrodcastOkBody {
+    pub r#type: String,
+    pub in_reply_to: usize,
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct ReadOkBody {
+    pub r#type: String,
+    pub in_reply_to: usize,
+    pub messages: Vec<usize>,
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct TopologyOkBody {
+    pub r#type: String,
+    pub in_reply_to: usize,
 }

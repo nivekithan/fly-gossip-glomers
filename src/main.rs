@@ -4,10 +4,11 @@ use std::{
 };
 
 use crate::{
-    request::{Request, RequestBody},
-    response::{EchoOkBody, GenerateOkBody, InitOkBody},
+    request::{BroadcastBody, ReadBody, Request, RequestBody, TopologyBody},
+    response::{EchoOkBody, GenerateOkBody, InitOkBody, ReadOkBody, TopologyOkBody},
 };
 use request::{EchoBody, GenerateBody, InitBody};
+use response::BrodcastOkBody;
 use tokio::io::{stdin, AsyncBufReadExt, BufReader};
 mod request;
 mod response;
@@ -18,16 +19,18 @@ async fn main() {
     let mut stdin_lines_stream = stdin_buf_reader.lines();
     let machine_config: SharedMachineConfig = Arc::new(tokio::sync::RwLock::new(None));
     let sequence: SharedSequenceNum = Arc::new(Mutex::new(0));
+    let messages: SharedMessages = Arc::new(Mutex::new(Vec::new()));
 
     while let Some(line) = stdin_lines_stream.next_line().await.unwrap() {
         eprintln!("Processing stdin line: \n {line}");
         let request: Request<RequestBody> = serde_json::from_str(&line).unwrap();
         let machine_config = Arc::clone(&machine_config);
         let sequence = Arc::clone(&sequence);
+        let messages = Arc::clone(&messages);
 
         tokio::task::spawn(async move {
             match &request.body {
-                request::RequestBody::Init(init_body) => {
+                request::RequestBody::init(init_body) => {
                     let init_request: Request<InitBody> = Request {
                         src: request.src,
                         dest: request.dest,
@@ -36,7 +39,7 @@ async fn main() {
 
                     handle_init(&init_request, machine_config).await;
                 }
-                request::RequestBody::Echo(echo_body) => {
+                request::RequestBody::echo(echo_body) => {
                     let echo_request: Request<EchoBody> = Request {
                         src: request.src,
                         dest: request.dest,
@@ -44,13 +47,40 @@ async fn main() {
                     };
                     handle_echo(&echo_request).await;
                 }
-                request::RequestBody::Generate(generate_body) => {
+                request::RequestBody::generate(generate_body) => {
                     let generate_request: Request<GenerateBody> = Request {
                         src: request.src,
                         dest: request.dest,
                         body: generate_body.clone(),
                     };
-                    handle_generate(&generate_request, machine_config, sequence).await
+                    handle_generate(&generate_request, machine_config, sequence).await;
+                }
+                request::RequestBody::broadcast(brodcast_body) => {
+                    let broadcast_request: Request<BroadcastBody> = Request {
+                        src: request.src,
+                        dest: request.dest,
+                        body: brodcast_body.clone(),
+                    };
+
+                    handle_broadcast(broadcast_request, messages).await;
+                }
+                request::RequestBody::read(read_body) => {
+                    let read_request: Request<ReadBody> = Request {
+                        src: request.src,
+                        dest: request.dest,
+                        body: read_body.clone(),
+                    };
+
+                    handle_read(read_request, messages).await;
+                }
+                request::RequestBody::topology(topolody_body) => {
+                    let toplogy_request: Request<TopologyBody> = Request {
+                        src: request.src,
+                        dest: request.dest,
+                        body: topolody_body.clone(),
+                    };
+                    
+                    handle_topology(toplogy_request).await;
                 }
             }
         });
@@ -119,7 +149,6 @@ async fn handle_generate(
         .duration_since(snowflake)
         .unwrap()
         .as_millis();
-    
 
     let unique_id = {
         let mut sequence = sequence.lock().unwrap();
@@ -131,10 +160,58 @@ async fn handle_generate(
     let generate_ok_body = GenerateOkBody {
         id: unique_id,
         r#type: String::from("generate_ok"),
-        in_reply_to : request.body.msg_id,
+        in_reply_to: request.body.msg_id,
     };
     request.reply(generate_ok_body);
     eprintln!("Sucessfully replied with generate_ok response");
+}
+
+async fn handle_broadcast(request: Request<BroadcastBody>, messages: SharedMessages) {
+    eprintln!(
+        "Handling broadcast message from maelstrom with body {broadcast_body:?}",
+        broadcast_body = request.body
+    );
+    let mut messages = messages.lock().unwrap();
+
+    messages.push(request.body.message);
+
+    request.reply(BrodcastOkBody {
+        r#type: "broadcast_ok".to_string(),
+        in_reply_to: request.body.msg_id,
+    });
+
+    eprintln!("Successfully replied with broadcast_ok message");
+}
+
+async fn handle_read(request: Request<ReadBody>, messages: SharedMessages) {
+    eprintln!(
+        "Handling read message from maelstrom with body {read_body:?}",
+        read_body = request.body
+    );
+
+    let messages = messages.lock().unwrap();
+
+    request.reply(ReadOkBody {
+        r#type: "read_ok".to_string(),
+        in_reply_to: request.body.msg_id,
+        messages: messages.clone(),
+    });
+
+    eprintln!("Successfully replied with read_ok message");
+}
+
+async fn handle_topology(request: Request<TopologyBody>) {
+    eprintln!(
+        "Handling read message from maelstrom with body {topology_body:?}",
+        topology_body = request.body
+    );
+
+    request.reply(TopologyOkBody {
+        r#type: "topology_ok".to_string(),
+        in_reply_to: request.body.msg_id,
+    });
+
+    eprintln!("Sucessfully replied with topology_ok message");
 }
 
 struct MachineConfig {
@@ -142,5 +219,5 @@ struct MachineConfig {
 }
 
 type SharedMachineConfig = Arc<tokio::sync::RwLock<Option<MachineConfig>>>;
-
 type SharedSequenceNum = Arc<Mutex<usize>>;
+type SharedMessages = Arc<Mutex<Vec<usize>>>;

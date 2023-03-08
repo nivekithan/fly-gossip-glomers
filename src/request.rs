@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
 
@@ -25,30 +25,48 @@ impl<Body> Request<Body> {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(untagged)]
+#[serde(tag = "type")]
+#[allow(non_camel_case_types)]
 pub enum RequestBody {
-    Init(InitBody),
-    Echo(EchoBody),
-    Generate(GenerateBody),
+    init(InitBody),
+    echo(EchoBody),
+    generate(GenerateBody),
+    broadcast(BroadcastBody),
+    read(ReadBody),
+    topology(TopologyBody),
 }
 
 #[derive(Deserialize, Debug, Clone)]
 
 pub struct InitBody {
-    pub r#type: String,
     pub msg_id: usize,
     pub node_id: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct EchoBody {
-    pub r#type: String,
     pub msg_id: usize,
     pub echo: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct GenerateBody {
-    pub r#type: String,
-    pub msg_id : usize,
+    pub msg_id: usize,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct BroadcastBody {
+    pub msg_id: usize,
+    pub message: usize,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ReadBody {
+    pub msg_id: usize,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct TopologyBody {
+    pub msg_id: usize,
+    pub topology: HashMap<String, Vec<String>>,
 }
